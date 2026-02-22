@@ -1,0 +1,1 @@
+export PATH=$PATH:/media/labuser/thinkwinky-files/01.TECH/xx.projects-to-improve/02.kubernetes-operators-ideas/bin

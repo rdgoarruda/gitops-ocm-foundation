@@ -1,0 +1,58 @@
+# ==============================================================
+# expose-tool.yaml - Template para expor uma nova ferramenta
+# via HAProxy Ingress no cluster Kind local
+# ==============================================================
+#
+# Como usar:
+#   1. Substitua os campos marcados com <PREENCHER>
+#   2. Adicione a entrada no /etc/hosts:
+#      172.18.0.3   <nomedaferramenta>.local
+#   3. Aplique: kubectl apply -f expose-tool.yaml
+#
+# Descobrindo o IP do control-plane:
+#   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dev-cluster-control-plane
+# ==============================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: <nomedaferramenta>-ingress       # ex: grafana-ingress
+  namespace: <namespace>                  # ex: monitoring
+  annotations:
+    # IMPORTANTE: usar esta annotation exata para o haproxy-ingress v0.15
+    kubernetes.io/ingress.class: haproxy
+spec:
+  rules:
+  - host: <nomedaferramenta>.local        # ex: grafana.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: <nome-do-service>       # ex: grafana
+            port:
+              number: <porta>             # ex: 80
+
+# ==============================================================
+# Exemplo real - Grafana no namespace monitoring:
+# ==============================================================
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: grafana-ingress
+#   namespace: monitoring
+#   annotations:
+#     kubernetes.io/ingress.class: haproxy
+# spec:
+#   rules:
+#   - host: grafana.local
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: grafana
+#             port:
+#               number: 80
