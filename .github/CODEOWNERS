@@ -1,0 +1,17 @@
+# -------------------------------------------------------
+# CODEOWNERS — gitops-ocm-foundation
+# Apenas @rdgoarruda pode aprovar PRs para a branch main.
+# Requer branch protection rule com "Require CODEOWNERS review".
+# -------------------------------------------------------
+
+# Catch-all: todo arquivo exige aprovação do owner
+*                        @rdgoarruda
+
+# Scripts de bootstrap
+scripts/**               @rdgoarruda
+
+# Manifests (Kind, OCM, ArgoCD)
+manifests/**             @rdgoarruda
+
+# Documentação
+docs/**                  @rdgoarruda

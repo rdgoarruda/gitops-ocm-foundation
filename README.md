@@ -531,6 +531,42 @@ sudo sed -i '/argocd.local/d' /etc/hosts
 
 ---
 
+## Proteção da Branch `main`
+
+Todos os 3 repositórios são protegidos via **CODEOWNERS** + **Branch Protection Rules** para que apenas `@rdgoarruda` possa fazer merge na `main`.
+
+### O que já está configurado nos repos
+
+Cada repositório contém `.github/CODEOWNERS` com `* @rdgoarruda` (catch-all), significando que **todo PR precisa da aprovação de `@rdgoarruda`**.
+
+### Ativar no GitHub
+
+A proteção real é aplicada no GitHub (Settings → Rules). Execute o script automatizado:
+
+```bash
+# Instalar GitHub CLI (se necessário)
+# https://cli.github.com/
+sudo apt install gh   # ou: brew install gh
+
+# Autenticar
+gh auth login
+
+# Aplicar as regras nos 3 repos
+./scripts/setup-branch-protection.sh
+```
+
+O script configura:
+- **Require PR** antes de merge (sem push direto na main)
+- **Require 1 approval** do CODEOWNERS (`@rdgoarruda`)
+- **Dismiss stale reviews** ao push de novos commits
+- **Impedir deletion** da branch main
+- **Impedir force-push**
+- **Require linear history** (squash/rebase)
+
+> Se preferir configurar manualmente: **Settings → Rules → Rulesets → New ruleset** em cada repositório.
+
+---
+
 ## Decisões Arquiteturais (ADRs)
 
 | # | Decisão | Resumo |
