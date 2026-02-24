@@ -1,11 +1,11 @@
-# CoreDNS patch for kind-prod-bu-x
+# CoreDNS patch for kind-bu-a-ho
 # Adds a static hosts entry so that the OCM Klusterlet agent running inside
-# this cluster can resolve gerencia-global-control-plane (kind's internal
-# Docker hostname for the Hub cluster) using its Docker bridge IP.
+# this cluster can resolve gerencia-ho-control-plane (kind's internal
+# Docker hostname for the HO Hub cluster) using its Docker bridge IP.
 #
 # Apply with:
-#   kubectl --context kind-prod-bu-x apply -f coredns-prod-bu-x.yaml
-#   kubectl --context kind-prod-bu-x rollout restart deploy/coredns -n kube-system
+#   kubectl --context kind-bu-a-ho apply -f coredns-bu-a-ho.yaml
+#   kubectl --context kind-bu-a-ho rollout restart deploy/coredns -n kube-system
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -20,7 +20,7 @@ data:
         }
         ready
         hosts {
-           172.18.0.3 gerencia-global-control-plane
+           172.18.0.2 gerencia-ho-control-plane
            fallthrough
         }
         kubernetes cluster.local in-addr.arpa ip6.arpa {

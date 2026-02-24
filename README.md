@@ -7,33 +7,43 @@ Repositório de **fundação e bootstrap** para replicar o ambiente multi-cluste
 ## Visão Geral da Arquitetura
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        REPOSITÓRIOS GIT                            │
-│                                                                     │
-│  gitops-ocm-foundation    gitops-global         gitops-bu           │
-│  (este repo)              (políticas OCM)       (tools da BU)       │
-│  └─ bootstrap do lab      └─ governance/*       └─ nprod/tools/*    │
-│                            └─ config/*           └─ prod/tools/*    │
-│                            └─ domains/bu-x/*                        │
-└─────────────┬──────────────────────┬────────────────────┬───────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        REPOSITÓRIOS GIT                                │
+│                                                                         │
+│  gitops-ocm-foundation    gitops-global          gitops-bu-a / bu-b     │
+│  (este repo)              (políticas OCM)        (tools da BU)          │
+│  └─ bootstrap do lab      └─ governance/*        └─ ho/tools/*          │
+│                            └─ config/*            └─ pr/tools/*         │
+│                            └─ domains/bu-a/*                            │
+│                            └─ domains/bu-b/*                            │
+└─────────────┬──────────────────────┬────────────────────┬───────────────┘
               │                      │                    │
-              ▼                      ▼                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│               gerencia-global (Hub)                                 │
-│               ├── ArgoCD          → sincroniza todos os repos       │
-│               ├── OCM Hub         → distribui políticas             │
-│               └── OCM Klusterlet  → auto-registrado como worker     │
-├─────────────────────────────────────────────────────────────────────┤
-│               nprod-bu-x (Worker)                                   │
-│               ├── OCM Klusterlet  → agente do Hub                   │
-│               ├── label: env=nprod                                  │
-│               └── recebe: políticas OCM + tools da BU               │
-├─────────────────────────────────────────────────────────────────────┤
-│               prod-bu-x (Worker)                                    │
-│               ├── OCM Klusterlet  → agente do Hub                   │
-│               ├── label: env=prod                                   │
-│               └── recebe: políticas OCM + tools da BU               │
-└─────────────────────────────────────────────────────────────────────┘
+   ┌──────────┴──────────────────────┴────────────────────┴────────────┐
+   │                                                                    │
+   │  ┌─── AMBIENTE HO (Homologação) ────────────────────────────────┐  │
+   │  │                                                                │  │
+   │  │  gerencia-ho (Hub HO)                                         │  │
+   │  │  ├── ArgoCD         → argocd-ho.local (:80)                   │  │
+   │  │  ├── OCM Hub        → distribui políticas (HO)                │  │
+   │  │  └── OCM Klusterlet → auto-registrado como worker             │  │
+   │  │                                                                │  │
+   │  │  bu-a-ho (Worker)           bu-b-ho (Worker)                  │  │
+   │  │  ├── env=ho, bu=bu-a        ├── env=ho, bu=bu-b               │  │
+   │  │  └── OCM Klusterlet         └── OCM Klusterlet                │  │
+   │  └────────────────────────────────────────────────────────────────┘  │
+   │                                                                    │
+   │  ┌─── AMBIENTE PR (Produção) ───────────────────────────────────┐  │
+   │  │                                                                │  │
+   │  │  gerencia-pr (Hub PR)                                         │  │
+   │  │  ├── ArgoCD         → argocd-pr.local (:8080)                 │  │
+   │  │  ├── OCM Hub        → distribui políticas (PR)                │  │
+   │  │  └── OCM Klusterlet → auto-registrado como worker             │  │
+   │  │                                                                │  │
+   │  │  bu-a-pr (Worker)           bu-b-pr (Worker)                  │  │
+   │  │  ├── env=pr, bu=bu-a        ├── env=pr, bu=bu-b               │  │
+   │  │  └── OCM Klusterlet         └── OCM Klusterlet                │  │
+   │  └────────────────────────────────────────────────────────────────┘  │
+   └────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -43,31 +53,32 @@ Repositório de **fundação e bootstrap** para replicar o ambiente multi-cluste
 ```
 gitops-ocm-foundation/
 ├── scripts/
-│   ├── bootstrap.sh              # Instala HAProxy + ArgoCD no cluster Hub
-│   ├── connect-clusters.sh       # Registra clusters worker no ArgoCD (Secrets)
+│   ├── create-clusters.sh        # Cria os 6 clusters Kind
+│   ├── bootstrap.sh              # Instala HAProxy + ArgoCD (--env ho|pr)
+│   ├── connect-clusters.sh       # Registra clusters BU no ArgoCD (--env ho|pr)
+│   ├── fix-ips.sh                # Atualiza IPs após reboot (--only ho|pr)
 │   ├── install_docker.sh         # Instala Docker no Ubuntu/Debian
 │   └── k8s_env.sh               # Exporta PATH com binários locais
 ├── manifests/
 │   ├── headlamp.yaml             # Dashboard Kubernetes (opcional)
 │   ├── kind-configs/
-│   │   ├── kind-gerencia.yaml    # Config Kind — cluster Hub (portas 80/443)
-│   │   ├── kind-nprod.yaml       # Config Kind — cluster nprod-bu-x
-│   │   ├── kind-prod.yaml        # Config Kind — cluster prod-bu-x
-│   │   ├── ingress-setup.yaml    # Ingress para ArgoCD (argocd.local)
+│   │   ├── kind-gerencia-ho.yaml # Config Kind — Hub HO (portas 80/443)
+│   │   ├── kind-gerencia-pr.yaml # Config Kind — Hub PR (portas 8080/8443)
+│   │   ├── kind-bu-a-ho.yaml    # Config Kind — Worker BU-A HO
+│   │   ├── kind-bu-a-pr.yaml    # Config Kind — Worker BU-A PR
+│   │   ├── kind-bu-b-ho.yaml    # Config Kind — Worker BU-B HO
+│   │   ├── kind-bu-b-pr.yaml    # Config Kind — Worker BU-B PR
 │   │   └── expose-tool.yaml      # Template para expor novas ferramentas
 │   └── ocm-configs/
 │       ├── argocd-apps/
 │       │   ├── 01-ocm-hub.yaml                      # ArgoCD App → OCM Hub (cluster-manager)
 │       │   ├── 02-ocm-klusterlet-hub.yaml            # ArgoCD App → Klusterlet no Hub
-│       │   ├── 03-ocm-klusterlet-nprod.yaml          # ArgoCD App → Klusterlet em nprod
-│       │   ├── 04-ocm-klusterlet-prod.yaml           # ArgoCD App → Klusterlet em prod
 │       │   └── ocm-governance-policy-framework.yaml  # ArgoCD App → Policy Framework addon
-│       ├── argocd-cluster-secrets/
-│       │   ├── argocd-secret-nprod-bu-x.yaml         # Secret para ArgoCD acessar nprod
-│       │   └── argocd-secret-prod-bu-x.yaml          # Secret para ArgoCD acessar prod
 │       └── coredns-patches/
-│           ├── coredns-nprod-bu-x.yaml               # DNS fix para nprod resolver o Hub
-│           └── coredns-prod-bu-x.yaml                # DNS fix para prod resolver o Hub
+│           ├── coredns-bu-a-ho.yaml                  # DNS fix para bu-a-ho resolver o Hub HO
+│           ├── coredns-bu-a-pr.yaml                  # DNS fix para bu-a-pr resolver o Hub PR
+│           ├── coredns-bu-b-ho.yaml                  # DNS fix para bu-b-ho resolver o Hub HO
+│           └── coredns-bu-b-pr.yaml                  # DNS fix para bu-b-pr resolver o Hub PR
 ├── docs/
 │   ├── ADR-001-three-repo-gitops-strategy.md
 │   ├── ADR-002-single-branch-environment-per-directory.md
@@ -115,201 +126,113 @@ curl -L https://raw.githubusercontent.com/open-cluster-management-io/clusteradm/
 
 ## Guia Passo a Passo — Replicação Completa
 
-### Fase 1 — Criar os 3 Clusters Kind
+### Fase 1 — Criar os 6 Clusters Kind
 
 ```bash
 cd gitops-ocm-foundation
 
-# 1. Cluster Hub (gerência) — com portas 80/443 mapeadas para Ingress
-kind create cluster --name gerencia-global --config manifests/kind-configs/kind-gerencia.yaml
+# Criar todos os clusters
+./scripts/create-clusters.sh
 
-# 2. Cluster nprod (worker)
-kind create cluster --name nprod-bu-x --config manifests/kind-configs/kind-nprod.yaml
-
-# 3. Cluster prod (worker)
-kind create cluster --name prod-bu-x --config manifests/kind-configs/kind-prod.yaml
+# Ou criar apenas um ambiente:
+./scripts/create-clusters.sh --only ho
+./scripts/create-clusters.sh --only pr
 ```
 
 **Verificação:**
 ```bash
 kind get clusters
-# Esperado:
-#   gerencia-global
-#   nprod-bu-x
-#   prod-bu-x
+# Esperado: bu-a-ho, bu-a-pr, bu-b-ho, bu-b-pr, gerencia-ho, gerencia-pr
 
 kubectl config get-contexts
-# Deve listar: kind-gerencia-global, kind-nprod-bu-x, kind-prod-bu-x
+# Deve listar: kind-gerencia-ho, kind-gerencia-pr, kind-bu-a-ho, kind-bu-a-pr, kind-bu-b-ho, kind-bu-b-pr
 ```
 
 ---
 
-### Fase 2 — Bootstrap do Hub (HAProxy + ArgoCD)
+### Fase 2 — Bootstrap dos Hubs
+
+Instala automaticamente: HAProxy + ArgoCD + Headlamp + OCM Hub + Klusterlet (auto-registro) + Governance Policy Framework.
 
 ```bash
-# Mudar para o contexto do Hub
-kubectl config use-context kind-gerencia-global
+# Bootstrap HO
+./scripts/bootstrap.sh --env ho
 
-# Executar o bootstrap
-./scripts/bootstrap.sh
+# Bootstrap PR
+./scripts/bootstrap.sh --env pr
 ```
 
-O script instala:
-1. **Gateway API CRDs**
-2. **HAProxy Ingress Controller** — bound nas portas 80/443 do nó control-plane
-3. **ArgoCD** — com modo inseguro (HTTP) para funcionar via Ingress
-4. **Ingress** — `argocd.local` apontando para o ArgoCD
-
-**Configurar DNS local:**
+**Obter senhas do ArgoCD:**
 ```bash
-# Descobrir IP do control-plane
-HUB_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gerencia-global-control-plane)
-echo "$HUB_IP argocd.local" | sudo tee -a /etc/hosts
+# Senha HO
+kubectl --context kind-gerencia-ho -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
+
+# Senha PR
+kubectl --context kind-gerencia-pr -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
 ```
 
-**Obter senha do ArgoCD:**
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
-# Usuário: admin
-# Acesse: http://argocd.local
-```
+**Acesso:**
+| Serviço | HO | PR |
+|---|---|---|
+| ArgoCD | http://argocd-ho.local | http://argocd-pr.local:8080 |
+| Headlamp | http://headlamp-ho.local | http://headlamp-pr.local:8080 |
 
 ---
 
-### Fase 3 — Registrar Clusters Worker no ArgoCD
+### Fase 3 — Conectar Clusters Worker
+
+Instala automaticamente em cada worker: ArgoCD Secret + CoreDNS + Headlamp + OCM Klusterlet. Também aprova CSRs e aceita os clusters no OCM Hub.
 
 ```bash
-kubectl config use-context kind-gerencia-global
-./scripts/connect-clusters.sh
-```
+# Workers HO (bu-a-ho, bu-b-ho → gerencia-ho)
+./scripts/connect-clusters.sh --env ho
 
-O script automaticamente:
-- Descobre os IPs dos containers Docker de `nprod-bu-x` e `prod-bu-x`
-- Extrai certificados TLS de cada cluster
-- Cria Secrets do tipo `argocd.argoproj.io/secret-type: cluster` no namespace `argocd`
+# Workers PR (bu-a-pr, bu-b-pr → gerencia-pr)
+./scripts/connect-clusters.sh --env pr
+```
 
 **Verificação:**
 ```bash
-kubectl -n argocd get secrets -l argocd.argoproj.io/secret-type=cluster
-# Deve listar: cluster-nprod-bu-x, cluster-prod-bu-x
-```
+# OCM clusters registrados
+kubectl --context kind-gerencia-ho get managedclusters
+# Esperado: in-cluster, bu-a-ho, bu-b-ho
 
-Ou acesse: http://argocd.local → **Settings** → **Clusters**
+kubectl --context kind-gerencia-pr get managedclusters
+# Esperado: in-cluster, bu-a-pr, bu-b-pr
 
----
-
-### Fase 4 — Instalar OCM (Hub + Klusterlets)
-
-#### 4.1 — Instalar OCM Hub + Klusterlet do Hub
-
-```bash
-kubectl config use-context kind-gerencia-global
-
-kubectl apply -f manifests/ocm-configs/argocd-apps/01-ocm-hub.yaml
-kubectl apply -f manifests/ocm-configs/argocd-apps/02-ocm-klusterlet-hub.yaml
-```
-
-Aguardar até o ArgoCD sincronizar (verifique em http://argocd.local).
-
-#### 4.2 — Corrigir DNS nos Workers
-
-Os clusters worker precisam resolver `gerencia-global-control-plane` (hostname Docker do Hub).
-
-> ⚠️ Verifique se o IP `172.18.0.2` nos arquivos corresponde ao IP real do Hub. Caso contrário, edite os arquivos `coredns-*.yaml`.
-
-```bash
-# Descobrir IP real do Hub
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gerencia-global-control-plane
-
-# Aplicar patches de DNS
-kubectl --context kind-nprod-bu-x apply -f manifests/ocm-configs/coredns-patches/coredns-nprod-bu-x.yaml
-kubectl --context kind-nprod-bu-x rollout restart deploy/coredns -n kube-system
-
-kubectl --context kind-prod-bu-x apply -f manifests/ocm-configs/coredns-patches/coredns-prod-bu-x.yaml
-kubectl --context kind-prod-bu-x rollout restart deploy/coredns -n kube-system
-```
-
-#### 4.3 — Instalar Klusterlets nos Workers
-
-```bash
-kubectl config use-context kind-gerencia-global
-
-kubectl apply -f manifests/ocm-configs/argocd-apps/03-ocm-klusterlet-nprod.yaml
-kubectl apply -f manifests/ocm-configs/argocd-apps/04-ocm-klusterlet-prod.yaml
-```
-
-#### 4.4 — Aprovar CSRs e Aceitar Clusters
-
-Quando os Klusterlets iniciam pela primeira vez, enviam um Certificate Signing Request ao Hub.
-
-```bash
-kubectl config use-context kind-gerencia-global
-
-# Aguardar CSRs aparecerem (pode levar 1-2 minutos)
-kubectl get csr -w
-
-# Aprovar CSRs pendentes
-csr_nprod=$(kubectl get csr | grep nprod-bu-x | grep Pending | awk '{print $1}')
-csr_prod=$(kubectl get csr | grep prod-bu-x | grep Pending | awk '{print $1}')
-kubectl certificate approve $csr_nprod $csr_prod
-
-# Aceitar os clusters no OCM Hub
-clusteradm accept --clusters nprod-bu-x,prod-bu-x
-```
-
-#### 4.5 — Instalar Policy Framework (Governance)
-
-```bash
-kubectl apply -f manifests/ocm-configs/argocd-apps/ocm-governance-policy-framework.yaml
-```
-
-**Verificação final do OCM:**
-```bash
-kubectl get managedclusters
-# Esperado:
-# NAME          HUB ACCEPTED   MANAGED CLUSTER URLS          JOINED   AVAILABLE
-# in-cluster    true           https://kubernetes.default...  True     True
-# nprod-bu-x    true           https://172.18.0.x:6443       True     True
-# prod-bu-x     true           https://172.18.0.x:6443       True     True
+# ArgoCD cluster secrets
+kubectl --context kind-gerencia-ho -n argocd get secrets -l argocd.argoproj.io/secret-type=cluster
+kubectl --context kind-gerencia-pr -n argocd get secrets -l argocd.argoproj.io/secret-type=cluster
 ```
 
 ---
 
-### Fase 5 — Testar o Repositório `gitops-global`
+### Fase 4 — Labelar Clusters e Aplicar GitOps
 
-O `gitops-global` contém a governança OCM e o bootstrap que auto-descobre políticas.
-
-#### 5.1 — Labelar Clusters para Placement
+Com a infra pronta, aplique labels e bootstraps do `gitops-global`:
 
 ```bash
-kubectl config use-context kind-gerencia-global
-
-kubectl label managedcluster nprod-bu-x env=nprod --overwrite
-kubectl label managedcluster prod-bu-x env=prod --overwrite
-
-# Criar ManagedClusterSet e adicionar clusters
-kubectl apply -f - <<EOF
+# === Labelar clusters para Placement (cada hub) ===
+for env_ctx in "kind-gerencia-ho:ho:bu-a-ho:bu-b-ho" "kind-gerencia-pr:pr:bu-a-pr:bu-b-pr"; do
+  IFS=: read ctx env w1 w2 <<< "$env_ctx"
+  kubectl --context "$ctx" label managedcluster "$w1" env=$env bu=bu-a --overwrite
+  kubectl --context "$ctx" label managedcluster "$w2" env=$env bu=bu-b --overwrite
+  kubectl --context "$ctx" apply -f - <<EOF
 apiVersion: cluster.open-cluster-management.io/v1beta2
 kind: ManagedClusterSet
 metadata:
   name: global
 EOF
+  kubectl --context "$ctx" label managedcluster "$w1" cluster.open-cluster-management.io/clusterset=global --overwrite
+  kubectl --context "$ctx" label managedcluster "$w2" cluster.open-cluster-management.io/clusterset=global --overwrite
+done
 
-kubectl label managedcluster nprod-bu-x cluster.open-cluster-management.io/clusterset=global --overwrite
-kubectl label managedcluster prod-bu-x cluster.open-cluster-management.io/clusterset=global --overwrite
-```
-
-#### 5.2 — Aplicar Bootstrap do gitops-global
-
-```bash
-kubectl config use-context kind-gerencia-global
-
-# Bootstrap nprod (App-of-Apps)
-kubectl apply -f - <<EOF
+# === Bootstrap do gitops-global ===
+kubectl --context kind-gerencia-ho apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-bootstrap-nprod
+  name: root-bootstrap-ho
   namespace: argocd
 spec:
   project: default
@@ -324,12 +247,11 @@ spec:
     automated: {prune: true, selfHeal: true}
 EOF
 
-# Bootstrap prod (App-of-Apps)
-kubectl apply -f - <<EOF
+kubectl --context kind-gerencia-pr apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-bootstrap-prod
+  name: root-bootstrap-pr
   namespace: argocd
 spec:
   project: default
@@ -343,49 +265,24 @@ spec:
   syncPolicy:
     automated: {prune: true, selfHeal: true}
 EOF
-```
 
-O ArgoCD automaticamente vai:
-1. Criar as Applications `ocm-config-nprod` e `ocm-config-prod` (Namespace, Placement, Bindings)
-2. Criar o ApplicationSet `governance-*` que varre `governance/*` e cria uma Application por categoria (security, platform, observability, capacity, compliance, infrastructure)
-3. O OCM distribui as políticas para os clusters via PlacementBinding
-
-**Verificação:**
-```bash
-# Applications criadas pelo ArgoCD
-kubectl -n argocd get applications
-
-# Políticas OCM distribuídas
-kubectl get policies -A
-
-# Status de compliance nos clusters
-kubectl get policies -A -o custom-columns='NAME:.metadata.name,NAMESPACE:.metadata.namespace,REMEDIATION:.spec.remediationAction,COMPLIANT:.status.compliant'
-```
-
----
-
-### Fase 6 — Testar o Repositório `gitops-bu`
-
-O `gitops-bu` é gerenciado indiretamente pelo `gitops-global` via `domains/bu-x/`.
-
-#### 6.1 — Aplicar Bootstrap da BU
-
-```bash
-kubectl config use-context kind-gerencia-global
-
-# Bootstrap BU nprod
-kubectl apply -f - <<EOF
+# === Bootstrap das BUs ===
+for env in ho pr; do
+  ctx="kind-gerencia-${env}"
+  env_path=$( [ "$env" = "ho" ] && echo "nprod" || echo "prod" )
+  for bu in bu-a bu-b; do
+    kubectl --context "$ctx" apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-bu-x-nprod
+  name: root-${bu}-${env}
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/rdgoarruda/gitops-global.git'
     targetRevision: main
-    path: domains/bu-x/nprod
+    path: domains/${bu}/${env_path}
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -393,46 +290,8 @@ spec:
     automated: {prune: true, selfHeal: true}
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
 EOF
-
-# Bootstrap BU prod
-kubectl apply -f - <<EOF
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: root-bu-x-prod
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: 'https://github.com/rdgoarruda/gitops-global.git'
-    targetRevision: main
-    path: domains/bu-x/prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
-  syncPolicy:
-    automated: {prune: true, selfHeal: true}
-    syncOptions: [CreateNamespace=true, ServerSideApply=true]
-EOF
-```
-
-O ApplicationSet `bu-tools-nprod` vai:
-- Varrer `nprod/tools/*` no `gitops-bu`
-- Para cada diretório (ex: `custom-headlamp`, `shared-utils`), criar uma Application ArgoCD
-- Fazer deploy no cluster `nprod-bu-x` via IP do container Docker
-
-**Verificação:**
-```bash
-# Applications da BU
-kubectl -n argocd get applications | grep bu-tool
-
-# Recursos no cluster nprod
-kubectl --context kind-nprod-bu-x get namespaces | grep tool
-# Esperado: tool-headlamp-nprod
-
-# Recursos no cluster prod
-kubectl --context kind-prod-bu-x get namespaces | grep tool
-# Esperado: tool-headlamp-prod
+  done
+done
 ```
 
 ---
@@ -440,19 +299,14 @@ kubectl --context kind-prod-bu-x get namespaces | grep tool
 ## Resumo — Ordem de Execução Completa
 
 ```
- Fase │ Comando                                           │ Onde
-──────┼───────────────────────────────────────────────────-┼──────────────────
-  1   │ kind create cluster (x3)                          │ Host local
-  2   │ ./scripts/bootstrap.sh                            │ gerencia-global
-  3   │ ./scripts/connect-clusters.sh                     │ gerencia-global
-  4.1 │ kubectl apply -f 01-ocm-hub.yaml                  │ gerencia-global
-  4.1 │ kubectl apply -f 02-ocm-klusterlet-hub.yaml       │ gerencia-global
-  4.2 │ kubectl apply -f coredns-patches (x2)             │ nprod + prod
-  4.3 │ kubectl apply -f 03/04-ocm-klusterlet-*.yaml      │ gerencia-global
-  4.4 │ kubectl certificate approve + clusteradm accept   │ gerencia-global
-  4.5 │ kubectl apply -f ocm-governance-policy-framework  │ gerencia-global
-  5   │ kubectl apply root-bootstrap-nprod/prod            │ gerencia-global
-  6   │ kubectl apply root-bu-x-nprod/prod                 │ gerencia-global
+ Fase │ Comando                                           │ O que instala
+──────┼───────────────────────────────────────────────────-┼──────────────────────────────
+  1   │ ./scripts/create-clusters.sh                      │ 6 clusters Kind
+  2   │ ./scripts/bootstrap.sh --env ho                   │ HAProxy+ArgoCD+Headlamp+OCM Hub
+  2   │ ./scripts/bootstrap.sh --env pr                   │ HAProxy+ArgoCD+Headlamp+OCM Hub
+  3   │ ./scripts/connect-clusters.sh --env ho            │ CoreDNS+Headlamp+OCM Klusterlet
+  3   │ ./scripts/connect-clusters.sh --env pr            │ CoreDNS+Headlamp+OCM Klusterlet
+  4   │ Labels + gitops-global bootstrap                  │ Governance + BU apps
 ```
 
 ---
@@ -461,58 +315,47 @@ kubectl --context kind-prod-bu-x get namespaces | grep tool
 
 ### IPs dos clusters mudaram após restart do Docker
 
-Os IPs `172.18.0.x` são atribuídos pelo Docker bridge network e mudam após reinício.
-
 ```bash
-# Verificar IPs atuais
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' gerencia-global-control-plane
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nprod-bu-x-control-plane
-docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' prod-bu-x-control-plane
+# Script automatizado para corrigir tudo
+./scripts/fix-ips.sh
 
-# Re-executar o script de conexão
-./scripts/connect-clusters.sh
-
-# Atualizar CoreDNS patches (editar IP em coredns-*.yaml) e re-aplicar
-kubectl --context kind-nprod-bu-x apply -f manifests/ocm-configs/coredns-patches/coredns-nprod-bu-x.yaml
-kubectl --context kind-nprod-bu-x rollout restart deploy/coredns -n kube-system
-kubectl --context kind-prod-bu-x apply -f manifests/ocm-configs/coredns-patches/coredns-prod-bu-x.yaml
-kubectl --context kind-prod-bu-x rollout restart deploy/coredns -n kube-system
+# Ou apenas um ambiente
+./scripts/fix-ips.sh --only ho
+./scripts/fix-ips.sh --only pr
 ```
 
 ### ArgoCD Application stuck em "Unknown" ou "Missing"
 
 ```bash
-# Verificar se o cluster secret está correto
-kubectl -n argocd get secrets -l argocd.argoproj.io/secret-type=cluster -o yaml
+# Verificar se o cluster secret está correto (ajustar contexto)
+kubectl --context kind-gerencia-ho -n argocd get secrets -l argocd.argoproj.io/secret-type=cluster -o yaml
 
 # Forçar re-sync
-kubectl -n argocd patch application <NOME> --type merge -p '{"operation":{"sync":{"prune":true}}}'
+kubectl --context kind-gerencia-ho -n argocd patch application <NOME> --type merge -p '{"operation":{"sync":{"prune":true}}}'
 ```
 
 ### Klusterlet não conecta ao Hub
 
 ```bash
-# Verificar se o DNS funciona no cluster worker
-kubectl --context kind-nprod-bu-x run dns-test --rm -it --image=busybox -- nslookup gerencia-global-control-plane
+# Verificar DNS no cluster worker
+kubectl --context kind-bu-a-ho run dns-test --rm -it --image=busybox -- nslookup gerencia-ho-control-plane
 
 # Verificar logs do klusterlet
-kubectl --context kind-nprod-bu-x logs -n open-cluster-management-agent -l app=klusterlet
+kubectl --context kind-bu-a-ho logs -n open-cluster-management-agent -l app=klusterlet
 
 # Verificar CSRs pendentes no Hub
-kubectl --context kind-gerencia-global get csr | grep Pending
+kubectl --context kind-gerencia-ho get csr | grep Pending
 ```
 
 ### Policies OCM não aparecem nos clusters
 
 ```bash
-# Verificar se o Policy Framework está rodando
-kubectl get deploy -n open-cluster-management | grep governance
+# Verificar se o Policy Framework está rodando (em cada hub)
+kubectl --context kind-gerencia-ho get deploy -n open-cluster-management | grep governance
+kubectl --context kind-gerencia-pr get deploy -n open-cluster-management | grep governance
 
 # Verificar PlacementBindings
-kubectl get placementbindings -A
-
-# Verificar Placement decisions
-kubectl get placementdecisions -A -o yaml
+kubectl --context kind-gerencia-ho get placementbindings -A
 ```
 
 ---
@@ -521,49 +364,28 @@ kubectl get placementdecisions -A -o yaml
 
 ```bash
 # Remover todos os clusters
-kind delete cluster --name gerencia-global
-kind delete cluster --name nprod-bu-x
-kind delete cluster --name prod-bu-x
+kind delete cluster --name gerencia-ho
+kind delete cluster --name gerencia-pr
+kind delete cluster --name bu-a-ho
+kind delete cluster --name bu-a-pr
+kind delete cluster --name bu-b-ho
+kind delete cluster --name bu-b-pr
 
 # Remover entradas do /etc/hosts
-sudo sed -i '/argocd.local/d' /etc/hosts
+sudo sed -i '/argocd-ho.local/d' /etc/hosts
+sudo sed -i '/argocd-pr.local/d' /etc/hosts
 ```
 
 ---
 
 ## Proteção da Branch `main`
 
-Todos os 3 repositórios são protegidos via **CODEOWNERS** + **Branch Protection Rules** para que apenas `@rdgoarruda` possa fazer merge na `main`.
-
-### O que já está configurado nos repos
-
-Cada repositório contém `.github/CODEOWNERS` com `* @rdgoarruda` (catch-all), significando que **todo PR precisa da aprovação de `@rdgoarruda`**.
-
-### Ativar no GitHub
-
-A proteção real é aplicada no GitHub (Settings → Rules). Execute o script automatizado:
+Todos os repositórios são protegidos via **CODEOWNERS** + **Branch Protection Rules**.
 
 ```bash
-# Instalar GitHub CLI (se necessário)
-# https://cli.github.com/
-sudo apt install gh   # ou: brew install gh
-
-# Autenticar
-gh auth login
-
-# Aplicar as regras nos 3 repos
+# Aplicar as regras nos repos
 ./scripts/setup-branch-protection.sh
 ```
-
-O script configura:
-- **Require PR** antes de merge (sem push direto na main)
-- **Require 1 approval** do CODEOWNERS (`@rdgoarruda`)
-- **Dismiss stale reviews** ao push de novos commits
-- **Impedir deletion** da branch main
-- **Impedir force-push**
-- **Require linear history** (squash/rebase)
-
-> Se preferir configurar manualmente: **Settings → Rules → Rulesets → New ruleset** em cada repositório.
 
 ---
 
@@ -572,7 +394,7 @@ O script configura:
 | # | Decisão | Resumo |
 |---|---|---|
 | [ADR-001](docs/ADR-001-three-repo-gitops-strategy.md) | Estratégia de 3 Repositórios | Separação: infra-terraform, platform-policies (global), workloads (bu) |
-| [ADR-002](docs/ADR-002-single-branch-environment-per-directory.md) | Branch Única + Overlays | `main` + diretórios por ambiente (nprod/prod) + CODEOWNERS |
+| [ADR-002](docs/ADR-002-single-branch-environment-per-directory.md) | Branch Única + Overlays | `main` + diretórios por ambiente (ho/pr) + CODEOWNERS |
 | [ADR-003](docs/ADR-003-ocm-over-rhacm.md) | OCM sobre RHACM | OCM para lab (leve), API 100% compatível com RHACM em produção |
 | [ADR-004](docs/ADR-004-argocd-as-delivery-tool.md) | ArgoCD como Delivery Tool | Pull-based, multi-cluster, drift detection, CNCF Graduated |
 
@@ -584,7 +406,8 @@ O script configura:
 |---|---|
 | **gitops-ocm-foundation** (este) | Bootstrap do ambiente local Kind + OCM + ArgoCD |
 | [**gitops-global**](https://github.com/rdgoarruda/gitops-global) | Governança OCM (policies), config do Hub, bridge para BUs |
-| [**gitops-bu**](https://github.com/rdgoarruda/gitops-bu) | Ferramentas e infraestrutura por Unidade de Negócio |
+| [**gitops-bu-a**](https://github.com/rdgoarruda/gitops-bu-a) | Ferramentas e infraestrutura da BU-A |
+| [**gitops-bu-b**](https://github.com/rdgoarruda/gitops-bu-b) | Ferramentas e infraestrutura da BU-B |
 
 ---
 
@@ -592,8 +415,8 @@ O script configura:
 
 | Recurso | Mínimo | Recomendado |
 |---|---|---|
-| CPU | 4 cores | 8 cores |
-| RAM | 8 GB | 16 GB |
-| Disco | 20 GB livres | 40 GB livres |
+| CPU | 6 cores | 8+ cores |
+| RAM | 12 GB | 16 GB |
+| Disco | 30 GB livres | 50 GB livres |
 
-> Os 3 clusters Kind + ArgoCD + OCM consomem aproximadamente 4-6 GB de RAM no total.
+> Os 6 clusters Kind + ArgoCD (x2) + OCM (x2) consomem aproximadamente 8-12 GB de RAM no total.

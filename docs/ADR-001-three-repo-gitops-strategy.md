@@ -2,6 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-02-21
+- **Atualizado:** 2026-02-24
 - **Decisores:** Time de Plataforma
 
 ---
@@ -13,8 +14,8 @@ Ao estruturar uma plataforma multi-cluster com múltiplas unidades de negócio (
 um monorepo único até repositórios completamente separados por cluster.
 
 O ambiente alvo consiste em:
-- Um cluster de gerenciamento central (`gerencia-global`)
-- Clusters worker por ambiente de negócio (`nprod-bu-x`, `prod-bu-x`)
+- Dois clusters de gerenciamento — `gerencia-ho` (Homologação) e `gerencia-pr` (Produção)
+- Clusters worker por BU e ambiente — `bu-a-ho`, `bu-a-pr`, `bu-b-ho`, `bu-b-pr`
 - Equipes distintas: Infraestrutura, Plataforma/SecOps, e Desenvolvimento de Aplicações
 
 ---
@@ -56,7 +57,7 @@ Todas as configurações em um único repositório.
 - Pipeline de CI/CD mais complexo para determinar o que mudou e o que precisa ser aplicado
 
 ### ❌ Repositório por cluster
-Um repo para `nprod-bu-x`, outro para `prod-bu-x`, etc.
+Um repo para `bu-a-ho`, outro para `bu-a-pr`, etc.
 
 **Por que descartado:**
 - **Drift inevitável:** configurações divergem entre repos ao longo do tempo

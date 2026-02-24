@@ -1,0 +1,42 @@
+# CoreDNS patch for kind-bu-a-pr
+# Adds a static hosts entry so that the OCM Klusterlet agent running inside
+# this cluster can resolve gerencia-pr-control-plane (kind's internal
+# Docker hostname for the PR Hub cluster) using its Docker bridge IP.
+#
+# Apply with:
+#   kubectl --context kind-bu-a-pr apply -f coredns-bu-a-pr.yaml
+#   kubectl --context kind-bu-a-pr rollout restart deploy/coredns -n kube-system
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        hosts {
+           172.18.0.5 gerencia-pr-control-plane
+           fallthrough
+        }
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30 {
+           disable success cluster.local
+           disable denial cluster.local
+        }
+        loop
+        reload
+        loadbalance
+    }
