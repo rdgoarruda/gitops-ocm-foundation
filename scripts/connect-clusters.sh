@@ -133,6 +133,27 @@ EOF
   kubectl --context "$WORKER_CONTEXT" apply -f "$REPO_ROOT/manifests/headlamp.yaml"
   echo "   Aguardando Headlamp iniciar..."
   kubectl --context "$WORKER_CONTEXT" rollout status deployment/headlamp -n headlamp --timeout=90s
+  
+  # Criar token permanente para o ServiceAccount headlamp-admin
+  echo "   Criando token permanente para acesso..."
+  kubectl --context "$WORKER_CONTEXT" apply -f - <<HEADLAMP_TOKEN
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headlamp-admin-token
+  namespace: headlamp
+  annotations:
+    kubernetes.io/service-account.name: headlamp-admin
+type: kubernetes.io/service-account-token
+HEADLAMP_TOKEN
+
+  # Aguardar token ser criado
+  sleep 3
+
+  # Salvar token em arquivo para facilitar acesso
+  HEADLAMP_TOKEN=$(kubectl --context "$WORKER_CONTEXT" get secret headlamp-admin-token -n headlamp -o jsonpath='{.data.token}' | base64 -d)
+  echo "$HEADLAMP_TOKEN" > "$REPO_ROOT/vault/headlamp-token-${worker}"
+  info "Token do Headlamp salvo em vault/headlamp-token-${worker}"
   info "Headlamp instalado ✅"
 
   # ── 4. OCM — Registrar via clusteradm join ─────────────────────────────
@@ -234,12 +255,14 @@ for worker in "${WORKERS[@]}"; do
   echo "   📦 ${worker}:"
   echo "      ✅ ArgoCD cluster secret"
   echo "      ✅ CoreDNS (resolve hub)"
-  echo "      ✅ Headlamp"
+  echo "      ✅ Headlamp (token: vault/headlamp-token-${worker})"
   echo "      ✅ OCM ManagedCluster (clusteradm join)"
   echo "      ✅ Governance Policy Framework addon"
   echo "      ✅ Config Policy Controller addon"
   echo ""
 done
+echo "🔐 Tokens de acesso Headlamp salvos em vault/"
+echo ""
 echo "Verifique o status do OCM:"
 echo "   kubectl --context $HUB_CONTEXT get managedclusters"
 echo ""

@@ -107,6 +107,19 @@ kubectl rollout status deployment/argocd-server -n argocd --timeout=120s
 kubectl patch deployment argocd-server -n argocd --type=json \
   -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--insecure"}]'
 
+# Configurar senha padrão: admin/admin
+echo "   Configurando senha padrão (admin/admin)..."
+ARGOCD_HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'admin', bcrypt.gensalt(rounds=10)).decode())")
+kubectl patch secret argocd-secret -n argocd --type=merge \
+  -p="{\"stringData\":{\"admin.password\":\"${ARGOCD_HASH}\",\"admin.passwordMtime\":\"$(date +%FT%T%Z)\"}}"
+
+# Deletar o secret inicial (não é mais necessário)
+kubectl delete secret argocd-initial-admin-secret -n argocd 2>/dev/null || true
+
+# Reiniciar o ArgoCD server para aplicar a nova senha
+kubectl rollout restart deployment/argocd-server -n argocd
+kubectl rollout status deployment/argocd-server -n argocd --timeout=120s
+
 # -----------------------------------------------------------
 # 4. Headlamp (Dashboard K8s)
 # -----------------------------------------------------------
@@ -114,6 +127,27 @@ echo "📊 [4/${TOTAL_STEPS}] Instalando Headlamp..."
 kubectl apply -f "$REPO_ROOT/manifests/headlamp.yaml"
 echo "   Aguardando Headlamp iniciar..."
 kubectl rollout status deployment/headlamp -n headlamp --timeout=90s
+
+# Criar token permanente para o ServiceAccount headlamp-admin
+echo "   Criando token permanente para acesso..."
+kubectl apply -f - <<HEADLAMP_TOKEN
+apiVersion: v1
+kind: Secret
+metadata:
+  name: headlamp-admin-token
+  namespace: headlamp
+  annotations:
+    kubernetes.io/service-account.name: headlamp-admin
+type: kubernetes.io/service-account-token
+HEADLAMP_TOKEN
+
+# Aguardar token ser criado
+sleep 3
+
+# Salvar token em arquivo para facilitar acesso
+HEADLAMP_TOKEN=$(kubectl get secret headlamp-admin-token -n headlamp -o jsonpath='{.data.token}' | base64 -d)
+echo "$HEADLAMP_TOKEN" > "$REPO_ROOT/vault/headlamp-token-${ENV}"
+info "Token do Headlamp salvo em vault/headlamp-token-${ENV}"
 
 # -----------------------------------------------------------
 # 5. Ingress para ArgoCD + Headlamp
@@ -267,18 +301,23 @@ echo "   ✅ Headlamp"
 echo "   ✅ OCM Hub (clusteradm init)"
 echo "   ✅ Hub auto-registrado como ManagedCluster (in-cluster)"
 echo ""
-echo "📋 Próximos passos:"
+echo "📋 Credenciais de acesso:"
 echo ""
-echo "1. Senha inicial do ArgoCD:"
-echo "   kubectl --context $CONTEXT -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo"
+echo "🔐 ArgoCD:"
+echo "   Usuário: admin"
+echo "   Senha:   admin"
+echo ""
+echo "🔐 Headlamp:"
+echo "   Token salvo em: vault/headlamp-token-${ENV}"
+echo "   (Cole o token na tela de login do Headlamp)"
 echo ""
 if [ "$ENV" = "ho" ]; then
   echo "2. Acesse pelo navegador:"
-  echo "   ArgoCD:   http://${ARGOCD_HOST}   (usuário: admin)"
+  echo "   ArgoCD:   http://${ARGOCD_HOST}"
   echo "   Headlamp: http://${HEADLAMP_HOST}"
 else
   echo "2. Acesse pelo navegador:"
-  echo "   ArgoCD:   http://${ARGOCD_HOST}:${ARGOCD_PORT}   (usuário: admin)"
+  echo "   ArgoCD:   http://${ARGOCD_HOST}:${ARGOCD_PORT}"
   echo "   Headlamp: http://${HEADLAMP_HOST}:${ARGOCD_PORT}"
 fi
 echo ""

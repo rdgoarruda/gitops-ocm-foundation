@@ -20,7 +20,7 @@ data:
         }
         ready
         hosts {
-           172.18.0.5 gerencia-pr-control-plane
+           172.18.0.4 gerencia-pr-control-plane
            fallthrough
         }
         kubernetes cluster.local in-addr.arpa ip6.arpa {

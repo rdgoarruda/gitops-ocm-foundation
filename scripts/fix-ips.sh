@@ -193,6 +193,7 @@ patch_hub_kubeconfig() {
 
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "ho" ]; then
   HUB_HO_IP="${CLUSTER_IPS[gerencia-ho]}"
+  # Workers
   for ctx in kind-bu-a-ho kind-bu-b-ho; do
     patch_hub_kubeconfig "$ctx" "open-cluster-management-agent-addon" \
       "governance-policy-framework-hub-kubeconfig" "$HUB_HO_IP"
@@ -201,9 +202,17 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "ho" ]; then
     patch_hub_kubeconfig "$ctx" "open-cluster-management-agent" \
       "hub-kubeconfig-secret" "$HUB_HO_IP"
   done
+  # Hub auto-registrado como in-cluster
+  patch_hub_kubeconfig "kind-gerencia-ho" "open-cluster-management-agent-addon" \
+    "governance-policy-framework-hub-kubeconfig" "$HUB_HO_IP"
+  patch_hub_kubeconfig "kind-gerencia-ho" "open-cluster-management-agent-addon" \
+    "config-policy-controller-hub-kubeconfig" "$HUB_HO_IP"
+  patch_hub_kubeconfig "kind-gerencia-ho" "open-cluster-management-agent" \
+    "hub-kubeconfig-secret" "$HUB_HO_IP"
 fi
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
   HUB_PR_IP="${CLUSTER_IPS[gerencia-pr]}"
+  # Workers
   for ctx in kind-bu-a-pr kind-bu-b-pr; do
     patch_hub_kubeconfig "$ctx" "open-cluster-management-agent-addon" \
       "governance-policy-framework-hub-kubeconfig" "$HUB_PR_IP"
@@ -212,6 +221,13 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
     patch_hub_kubeconfig "$ctx" "open-cluster-management-agent" \
       "hub-kubeconfig-secret" "$HUB_PR_IP"
   done
+  # Hub auto-registrado como in-cluster
+  patch_hub_kubeconfig "kind-gerencia-pr" "open-cluster-management-agent-addon" \
+    "governance-policy-framework-hub-kubeconfig" "$HUB_PR_IP"
+  patch_hub_kubeconfig "kind-gerencia-pr" "open-cluster-management-agent-addon" \
+    "config-policy-controller-hub-kubeconfig" "$HUB_PR_IP"
+  patch_hub_kubeconfig "kind-gerencia-pr" "open-cluster-management-agent" \
+    "hub-kubeconfig-secret" "$HUB_PR_IP"
 fi
 echo ""
 
@@ -258,6 +274,13 @@ restart_hub() {
   kubectl --context "$ctx" rollout restart \
     deploy/governance-policy-propagator \
     -n open-cluster-management 2>/dev/null || true
+  # Reiniciar governance addons do hub (in-cluster)
+  kubectl --context "$ctx" rollout restart \
+    deploy/governance-policy-framework deploy/config-policy-controller \
+    -n open-cluster-management-agent-addon 2>/dev/null || true
+  # Reiniciar argocd-repo-server (trava frequentemente após reboot)
+  kubectl --context "$ctx" delete pod -n argocd \
+    -l app.kubernetes.io/name=argocd-repo-server 2>/dev/null || true
 }
 
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "ho" ]; then
