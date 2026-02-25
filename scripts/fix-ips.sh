@@ -99,6 +99,22 @@ fi
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
   update_hosts "argocd-pr.local" "${CLUSTER_IPS[gerencia-pr]}"
 fi
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
+  update_hosts "argocd-pr.local"   "${CLUSTER_IPS[gerencia-pr]}"
+  update_hosts "headlamp-pr.local" "${CLUSTER_IPS[gerencia-pr]}"
+fi
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "ho" ]; then
+  update_hosts "headlamp-bu-a-ho.local"   "${CLUSTER_IPS[bu-a-ho]}"
+  update_hosts "sample-app-bu-a-ho.local" "${CLUSTER_IPS[bu-a-ho]}"
+  update_hosts "headlamp-bu-b-ho.local"   "${CLUSTER_IPS[bu-b-ho]}"
+  update_hosts "sample-app-bu-b-ho.local" "${CLUSTER_IPS[bu-b-ho]}"
+fi
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
+  update_hosts "headlamp-bu-a-pr.local"   "${CLUSTER_IPS[bu-a-pr]}"
+  update_hosts "sample-app-bu-a-pr.local" "${CLUSTER_IPS[bu-a-pr]}"
+  update_hosts "headlamp-bu-b-pr.local"   "${CLUSTER_IPS[bu-b-pr]}"
+  update_hosts "sample-app-bu-b-pr.local" "${CLUSTER_IPS[bu-b-pr]}"
+fi
 echo ""
 
 # ── 4. Atualizar CoreDNS nos clusters worker ────────────────────────────────
