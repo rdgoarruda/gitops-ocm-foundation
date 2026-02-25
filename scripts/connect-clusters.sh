@@ -86,17 +86,17 @@ for worker in "${WORKERS[@]}"; do
   # ── 1. Registrar no ArgoCD ─────────────────────────────────────────────
   info "[1/5] Registrando ${worker} no ArgoCD..."
   ca_cert=$(kubectl --context "$WORKER_CONTEXT" config view --raw \
-    -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+    -o jsonpath="{.clusters[?(@.name==\"$WORKER_CONTEXT\")].cluster.certificate-authority-data}")
   client_cert=$(kubectl --context "$WORKER_CONTEXT" config view --raw \
-    -o jsonpath='{.users[0].user.client-certificate-data}')
+    -o jsonpath="{.users[?(@.name==\"$WORKER_CONTEXT\")].user.client-certificate-data}")
   client_key=$(kubectl --context "$WORKER_CONTEXT" config view --raw \
-    -o jsonpath='{.users[0].user.client-key-data}')
+    -o jsonpath="{.users[?(@.name==\"$WORKER_CONTEXT\")].user.client-key-data}")
 
   kubectl --context "$HUB_CONTEXT" apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: cluster-${worker}
+  name: ${worker}-secret
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: cluster

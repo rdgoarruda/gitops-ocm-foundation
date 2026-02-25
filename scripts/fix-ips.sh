@@ -154,12 +154,12 @@ patch_argocd_secret() {
 }
 
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "ho" ]; then
-  patch_argocd_secret "kind-gerencia-ho" "cluster-bu-a-ho" "${CLUSTER_IPS[bu-a-ho]}"
-  patch_argocd_secret "kind-gerencia-ho" "cluster-bu-b-ho" "${CLUSTER_IPS[bu-b-ho]}"
+  patch_argocd_secret "kind-gerencia-ho" "bu-a-ho-secret" "${CLUSTER_IPS[bu-a-ho]}"
+  patch_argocd_secret "kind-gerencia-ho" "bu-b-ho-secret" "${CLUSTER_IPS[bu-b-ho]}"
 fi
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "pr" ]; then
-  patch_argocd_secret "kind-gerencia-pr" "cluster-bu-a-pr" "${CLUSTER_IPS[bu-a-pr]}"
-  patch_argocd_secret "kind-gerencia-pr" "cluster-bu-b-pr" "${CLUSTER_IPS[bu-b-pr]}"
+  patch_argocd_secret "kind-gerencia-pr" "bu-a-pr-secret" "${CLUSTER_IPS[bu-a-pr]}"
+  patch_argocd_secret "kind-gerencia-pr" "bu-b-pr-secret" "${CLUSTER_IPS[bu-b-pr]}"
 fi
 echo ""
 
