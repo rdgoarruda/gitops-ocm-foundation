@@ -28,9 +28,9 @@ ocm-configs/
 Repita para cada hub (HO e PR), ajustando o contexto:
 
 ```bash
-# 1. OCM Hub + Klusterlet do Hub
-kubectl --context kind-gerencia-ho apply -f argocd-apps/01-ocm-hub.yaml
-kubectl --context kind-gerencia-ho apply -f argocd-apps/02-ocm-klusterlet-hub.yaml
+# 1. Aplicar a configuração App of Apps do ArgoCD
+# Isso instalará o OCM Hub, o Klusterlet no Hub e o Governance Policy Framework automaticamente
+kubectl --context kind-gerencia-ho apply -f root-app.yaml
 
 # 2. CoreDNS patches nos workers (para resolver hostname do hub)
 kubectl --context kind-bu-a-ho apply -f coredns-patches/coredns-bu-a-ho.yaml
@@ -38,13 +38,10 @@ kubectl --context kind-bu-a-ho rollout restart deploy/coredns -n kube-system
 kubectl --context kind-bu-b-ho apply -f coredns-patches/coredns-bu-b-ho.yaml
 kubectl --context kind-bu-b-ho rollout restart deploy/coredns -n kube-system
 
-# 3. Aprovar clusters
+# 3. Aprovar clusters (Se houver novos Klusterlets não auto-aprovados)
 kubectl --context kind-gerencia-ho get csr -w
 kubectl --context kind-gerencia-ho certificate approve <CSR_NAMES>
 clusteradm accept --clusters bu-a-ho,bu-b-ho
-
-# 4. Policy Framework
-kubectl --context kind-gerencia-ho apply -f argocd-apps/ocm-governance-policy-framework.yaml
 ```
 
 ## Notas
