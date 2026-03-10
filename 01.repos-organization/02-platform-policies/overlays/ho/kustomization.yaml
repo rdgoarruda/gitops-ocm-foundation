@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - placement-ho.yaml
+  - placementbinding-ho.yaml
+
+patches:
+  - target:
+      kind: Policy
+      name: policy-infra-baseline
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: policy-infra-baseline-ho
